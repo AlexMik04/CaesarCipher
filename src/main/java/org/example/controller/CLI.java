@@ -1,4 +1,7 @@
-package org.example;
+package org.example.controller;
+
+import org.example.model.CaesarCipher;
+import org.example.model.FileService;
 
 import java.nio.file.Path;
 
