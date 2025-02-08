@@ -1,62 +1,107 @@
 package org.example.model.cipher;
 
-import org.example.model.SymbolsData;
+import org.example.model.alphabet.AlphabetCountry;
+import org.example.model.alphabet.AlphabetManager;
 
+import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
 
-class CaesarCipher {
+public class CaesarCipher extends CipherManager {
 
-    private void validateInput(String text) {
-        if (text == null || text.isEmpty()) {
-            throw new IllegalArgumentException("Text cannot be null or empty");
-        }
+    public CaesarCipher(AlphabetManager alphabetManager) {
+        super(alphabetManager);
     }
 
-    String encrypt(String text, SymbolsData symbolsData, int shift) {
-        validateInput(text);
+    @Override
+    public String decrypt(String text, int caesarKey) {
+        return encrypt(text, -caesarKey);
+    }
+
+    @Override
+    public String encrypt(String text, int caesarKey) {
+        if (text == null) {
+            throw new IllegalArgumentException("Text is null");
+        }
 
         StringBuilder builder = new StringBuilder();
-        for (String symb : text.split("")) {
-            builder.append(symbolEncryption(symb, symbolsData, shift));
+        for (String symbol : text.split("")) {
+            boolean found = false;
+            for (AlphabetCountry alphabetCountry : alphabetManager.getAlphabets()) {
+                if (alphabetCountry.containsAlphabetSymbol(symbol.toUpperCase())) {
+                    builder.append(encryptPreservingCase(symbol, alphabetCountry, caesarKey));
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                builder.append(symbol);
+            }
         }
         return builder.toString();
     }
 
-    private String symbolEncryption(String symbol, SymbolsData symbolsData, int shift) {
-        validateInput(symbol);
-
-        if (!symbolsData.isAlphabetSymbol(symbol) && !symbolsData.isNonAlphabetSymbol(symbol)) {
-            return symbol; // Якщо символ не знайдено в жодному алфавіті, повертаємо його без змін
+    private String encryptPreservingCase(String symbol, AlphabetCountry alphabetCountry, int caesarKey) {
+        if (symbol == null) {
+            throw new IllegalArgumentException("Symbol is null");
+        } else if (alphabetCountry == null) {
+            throw new IllegalArgumentException("Alphabet is null");
         }
 
-        OptionalInt optionalIndex = symbolsData.getIndexSymbol(symbol);
+        boolean isUpperCase = Character.isUpperCase(symbol.charAt(0));
+        String encryptedSymbol = encryptSymbol(symbol.toUpperCase(), alphabetCountry, caesarKey);
+
+        return isUpperCase ? encryptedSymbol : encryptedSymbol.toLowerCase();
+    }
+
+    private String encryptSymbol(String symbol, AlphabetCountry alphabetCountry, int caesarKey) {
+        OptionalInt optionalIndex = alphabetCountry.getIndexAlphabetSymbol(symbol);
         if (optionalIndex.isEmpty()) {
             return symbol;
         }
+
         int index = optionalIndex.getAsInt();
+        int length = alphabetCountry.getAlphabetSymbolsSize();
 
-        if (symbolsData.isAlphabetSymbol(symbol)) {
-            return getEncodeAlphabetSymbol(symbolsData, index, shift).orElse(symbol);
-        } else {
-            return getEncodeNonAlphabetSymbol(symbolsData, index, shift).orElse(symbol);
+        int newIndex = calculateNewIndex(index, length, caesarKey);
+
+        return alphabetCountry.getAlphabetSymbol(newIndex).orElse(symbol);
+    }
+
+    private int calculateNewIndex(int index, int length, int caesarKey) {
+        int newIndex = (index + caesarKey) % length;
+        if (newIndex < 0) {
+            newIndex += length;
         }
+        return newIndex;
     }
 
-    private Optional<String> getEncodeAlphabetSymbol(SymbolsData symbolsData, int index, int shift) {
-        int length = symbolsData.getAlphabetSize();
-        int newIndex = getEncodeNewIndex(index, length, shift);
-        return symbolsData.getAlphabetSymbol(newIndex); // Повертаємо символ з алфавіту
+
+    @Override
+    public String bruteForce(String text, Map<AlphabetCountry, Integer> mapAlphabetKey) {
+        if (text == null) {
+            throw new IllegalArgumentException("Text is null");
+        } else if (mapAlphabetKey == null) {
+            throw new IllegalArgumentException("Map AlphabetKey is null");
+        }
+
+        StringBuilder builder = new StringBuilder();
+
+        for (String symbol : text.split("")) {
+            Optional<AlphabetCountry> optionalAlphabetData = mapAlphabetKey.keySet().stream()
+                    .filter(alphabet -> alphabet.containsAlphabetSymbol(symbol.toUpperCase()))
+                    .findFirst();
+
+            if (optionalAlphabetData.isPresent()) {
+                AlphabetCountry alphabetCountry = optionalAlphabetData.get();
+                int caesarKey = mapAlphabetKey.get(alphabetCountry);
+                builder.append(encryptPreservingCase(symbol, alphabetCountry, caesarKey));
+            } else {
+                builder.append(symbol);
+            }
+        }
+
+        return builder.toString();
     }
 
-    private Optional<String> getEncodeNonAlphabetSymbol(SymbolsData symbolsData, int index, int shift) {
-        int length = symbolsData.getNonAlphabetSize();
-        int newIndex = getEncodeNewIndex(index, length, shift);
-        return symbolsData.getNonAlphabetSymbol(newIndex); // Повертаємо символ з неалфавітних
-    }
-
-    private int getEncodeNewIndex(int index, int length, int shift) {
-        int newIndex = (index + shift) % length;
-        return (newIndex < 0) ? newIndex + length : newIndex; // Корекція для від’ємних зміщень
-    }
 }

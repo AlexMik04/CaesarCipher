@@ -16,9 +16,5 @@ public final class Symbols {
             "Х", "Ц", "Ч", "Ш", "Щ", "Ь", "Ю", "Я"
     );
 
-    public static final List<String> SYMBOLS_SPECIAL = List.of(
-            ".", ",", "«", "»", "'", "\"", ":", "!", "?", " "
-    );
-
     private Symbols() {}
 }

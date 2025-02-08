@@ -25,9 +25,5 @@ public final class Frequencies {
             0.011, 0.010, 0.011, 0.005, 0.004, 0.016, 0.008, 0.019
     );
 
-    public static final List<Double> FREQUENCIES_SPECIAL_SYMBOLS = List.of(
-            0.13, 0.11, 0.05, 0.05, 0.07, 0.07, 0.04, 0.03, 0.04, 0.4
-    );
-
     private Frequencies() {}
 }

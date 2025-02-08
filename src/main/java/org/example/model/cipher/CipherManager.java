@@ -1,48 +1,28 @@
 package org.example.model.cipher;
 
-import org.example.model.constants.Language;
-import org.example.model.SymbolsData;
-import org.example.model.constants.Frequencies;
-import org.example.model.constants.Symbols;
+import org.example.model.alphabet.AlphabetCountry;
+import org.example.model.alphabet.AlphabetManager;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 
-public class CipherManager {
-    private final SymbolsData symbolsEngland;
-    private final SymbolsData symbolsUkrainian;
+import java.util.*;
 
-    private final CaesarCipher caesarCipher;
+public abstract class CipherManager {
 
-    public CipherManager() {
-        this.caesarCipher = new CaesarCipher();
+    protected final AlphabetManager alphabetManager;
 
-        this.symbolsEngland = new SymbolsData(
-                Language.ENGLAND,
-                Symbols.ALPHABET_ENGLISH,
-                Frequencies.FREQUENCIES_ALPHABET_ENGLISH,
-                Symbols.SYMBOLS_SPECIAL,
-                Frequencies.FREQUENCIES_SPECIAL_SYMBOLS);
-
-        this.symbolsUkrainian = new SymbolsData(
-                Language.UKRAINIAN,
-                Symbols.ALPHABET_UKRAINIAN,
-                Frequencies.FREQUENCIES_ALPHABET_UKRAINIAN,
-                Symbols.SYMBOLS_SPECIAL,
-                Frequencies.FREQUENCIES_SPECIAL_SYMBOLS);
-    }
-
-    private SymbolsData findSymbolsData(String text) {
-        for (String symbol : text.toUpperCase().split("")) {
-            if (Symbols.ALPHABET_UKRAINIAN.contains(symbol)) {
-                return symbolsUkrainian;
-            }
+    CipherManager(AlphabetManager alphabetManager) {
+        if (alphabetManager == null) {
+            throw new IllegalArgumentException("AlphabetManager is null");
         }
-        return symbolsEngland;
+
+        this.alphabetManager = alphabetManager;
     }
 
-    private Map<String, Double> calculateTextSymbolsFrequencies(String text) {
+    public Map<String, Double> calculateTextSymbolsFrequencies(String text) {
+        if (text == null || text.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
         Map<String, Integer> countMap = new HashMap<>();
         int totalSymbols = 0;
 
@@ -52,57 +32,86 @@ public class CipherManager {
         }
 
         if (totalSymbols == 0) {
-            return Collections.emptyMap(); // Якщо немає літер, повертаємо пусту мапу
+            return Collections.emptyMap();
         }
 
         Map<String, Double> frequencyMap = new HashMap<>();
-        for (String symbol : countMap.keySet()) {
-            frequencyMap.put(symbol, countMap.getOrDefault(symbol, 0) / (double) totalSymbols);
+        for (Map.Entry<String, Integer> entry : countMap.entrySet()) {
+            frequencyMap.put(entry.getKey(), entry.getValue() / (double) totalSymbols);
         }
 
         return frequencyMap;
     }
 
-    private int findShift(Map<String, Double> textFrequency, SymbolsData symbolsData) {
-        int bestShift = 0;
-        double minDiff = Double.MAX_VALUE;
-        int length = symbolsData.getAlphabetSize();
+    public Optional<AlphabetCountry> findAlphabetData(String symbol) {
+        if (symbol == null || symbol.isEmpty()) {
+            return Optional.empty();
+        }
 
-        for (int shift = 0; shift < length; shift++) { // Перебираємо всі можливі зсуви
+        return alphabetManager.getAlphabets().stream()
+                .filter(alphabetData -> alphabetData.containsAlphabetSymbol(symbol.toUpperCase()))
+                .findFirst();
+    }
+
+    public Map<AlphabetCountry, Integer> findCaesarKeyByAlphabet(String text) {
+        if (text == null || text.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        Map<AlphabetCountry, StringBuilder> textByAlphabet = new HashMap<>();
+        for (String symbol : text.split("")) {
+            findAlphabetData(symbol).ifPresent(alphabetData -> textByAlphabet
+                    .computeIfAbsent(alphabetData, k -> new StringBuilder())
+                    .append(symbol));
+        }
+
+        Map<AlphabetCountry, Integer> keysByAlphabet = new HashMap<>();
+        for (Map.Entry<AlphabetCountry, StringBuilder> entry : textByAlphabet.entrySet()) {
+            AlphabetCountry alphabetCountry = entry.getKey();
+            String filteredText = entry.getValue().toString();
+            int caesarKey = findCaesarKeyForAlphabet(filteredText, alphabetCountry);
+            keysByAlphabet.put(alphabetCountry, caesarKey);
+        }
+
+        return keysByAlphabet;
+    }
+
+    private int findCaesarKeyForAlphabet(String text, AlphabetCountry alphabetCountry) {
+        int bestCaesarKey = 0;
+        double minDiff = Double.MAX_VALUE;
+        int lengthAlphabet = alphabetCountry.getAlphabetSymbolsSize();
+
+        Map<String, Double> mapTextSymbolsFrequencies = calculateTextSymbolsFrequencies(text);
+
+        for (int key = 0; key < lengthAlphabet; key++) {
             double totalDiff = 0.0;
 
-            for (int index = 0; index < length; index++) {
-                String originalSymbol = symbolsData.getAlphabetSymbol(index).orElse("");
-                String shiftedSymbol = symbolsData.getAlphabetSymbol((index + shift) % length).orElse(""); // Зсув у межах алфавіту
+            for (int index = 0; index < lengthAlphabet; index++) {
+                String originalSymbol = alphabetCountry.getAlphabetSymbol(index).orElse(null);
+                String keySymbol = alphabetCountry.getAlphabetSymbol((index + key) % lengthAlphabet).orElse(null);
 
-                double textFreq = textFrequency.getOrDefault(originalSymbol, 0.0);
-                double langFreq = symbolsData.getSymbolFrequency(shiftedSymbol);
+                if (originalSymbol == null || keySymbol == null) {
+                    continue;
+                }
+
+                double textFreq = mapTextSymbolsFrequencies.getOrDefault(originalSymbol, 0.0);
+                double langFreq = alphabetCountry.getAlphabetSymbolFrequency(keySymbol);
 
                 totalDiff += Math.abs(textFreq - langFreq);
             }
 
             if (totalDiff < minDiff) {
                 minDiff = totalDiff;
-                bestShift = shift;
+                bestCaesarKey = key;
             }
         }
 
-        return bestShift;
+        return bestCaesarKey;
     }
 
-    public String bruteForce(String text) {
-        SymbolsData symbolsData = findSymbolsData(text);
-        Map<String, Double> textFrequency = calculateTextSymbolsFrequencies(text);
-        int shift = findShift(textFrequency, symbolsData);
-        return caesarCipher.encrypt(text, symbolsData, shift);
-    }
 
-    public String decrypt(String text, int shift) {
-        return encrypt(text, -shift);
-    }
+    public abstract String decrypt(String text, int caesarKey);
+    public abstract String encrypt(String text, int caesarKey);
+    public abstract String bruteForce(String text, Map<AlphabetCountry, Integer> mapAlphabetKey);
 
-    public String encrypt(String text, int shift) {
-        SymbolsData symbolsData = findSymbolsData(text);
-        return caesarCipher.encrypt(text, symbolsData, shift);
-    }
 }
