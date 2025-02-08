@@ -9,8 +9,6 @@ import java.util.Map;
 import java.util.Optional;
 
 public class ControllerGUI {
-    private static final String COMMAND_GUI = "GUI";
-
     private final FileService service;
     private final CipherManager cipherManager;
 
@@ -23,12 +21,7 @@ public class ControllerGUI {
         this.cipherManager = controllerManager.cipherManager();
     }
 
-    public void processRun(String command) {
-        if (!COMMAND_GUI.equals(command)) {
-            System.out.println("Enter a valid command: [GUI]");
-            return;
-        }
-
+    public void processRun() {
         ViewGUI viewGUI = new ViewGUI();
         viewGUI.clickButtonOpenFile(e -> {
             Optional<String> optionalFilePath = viewGUI.getFilePath();

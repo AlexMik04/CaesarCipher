@@ -11,6 +11,8 @@ import org.example.model.cipher.CipherManager;
 import org.example.view.CLI;
 
 public class Runner {
+    private static final String COMMAND_GUI = "GUI";
+    private static final String COMMAND_CLI = "CLI";
 
     private final ControllerManager controllerManager;
 
@@ -41,13 +43,23 @@ public class Runner {
         if (args.length == 3 || args.length == 2) {
             ControllerArgs controller = new ControllerArgs(controllerManager);
             controller.processRun(args);
-        } else if (args.length == 1) {
+        } else if (args.length == 1 && args[0].equalsIgnoreCase(COMMAND_GUI)) {
             ControllerGUI controller = new ControllerGUI(controllerManager);
-            controller.processRun(args[0]);
-        } else if (args.length == 0) {
+            controller.processRun();
+        } else if (args.length == 1 && args[0].equalsIgnoreCase(COMMAND_CLI)) {
             CLI cli = new CLI();
             ControllerCLI controller = new ControllerCLI(controllerManager, cli);
             controller.processRun();
+        } else {
+            System.out.println(
+                    new StringBuilder("Enter the correct command:\n")
+                            .append("java -jar <path_to_jar>/myApp.jar ENCRYPT <file_path> <key> — to encrypt a file\n")
+                            .append("java -jar <path_to_jar>/myApp.jar DECRYPT <file_path> <key> — to decrypt a file\n")
+                            .append("java -jar <path_to_jar>/myApp.jar BRUTE_FORCE <file_path> — to attempt brute force decryption of a file\n")
+                            .append("java -jar <path_to_jar>/myApp.jar CLI — to run via the command line (CLI)\n")
+                            .append("java -jar <path_to_jar>/myApp.jar GUI — to run the graphical user interface (GUI)")
+
+            );
         }
     }
 }
