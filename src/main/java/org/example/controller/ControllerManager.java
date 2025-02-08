@@ -13,7 +13,9 @@ import java.util.Map;
 public record ControllerManager(FileService service, CipherManager cipherManager) {
 
     public boolean isFileNotExists(String pathFile) {
-        if (pathFile == null || pathFile.isBlank()) return true;
+        if (pathFile == null || pathFile.isBlank()) {
+            return true;
+        }
 
         try {
             Path path = Path.of(pathFile);
